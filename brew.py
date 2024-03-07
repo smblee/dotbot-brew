@@ -1,6 +1,6 @@
 import os
 import re
-import subprocess
+import platform, subprocess
 from typing import Mapping
 from typing import Callable
 from typing import Iterable
@@ -55,15 +55,17 @@ class Brew(dotbot.Plugin):
     def _invoke_shell_command(self, cmd: str, defaults: Mapping[str, Any]) -> int:
         with open(os.devnull, "w") as devnull:
             if defaults["force_intel"]:
-                cmd = "arch --x86_64 " + cmd
+                cmd = "arch --x86_64 " + cmd.replace('brew', '/usr/local/bin/brew', 1)
+            elif platform.processor() == "arm":
+                cmd = "arch --arm64 " + cmd.replace('brew', '/opt/homebrew/bin/brew', 1)
 
             return subprocess.call(
                 cmd,
                 shell=True,
                 cwd=self._context.base_directory(),
-                stdin=devnull if defaults["stdin"] else None,
-                stdout=devnull if defaults["stdout"] else None,
-                stderr=devnull if defaults["stderr"] else None,
+                stdin=devnull if not defaults["stdin"] else None,
+                stdout=devnull if not defaults["stdout"] else None,
+                stderr=devnull if not defaults["stderr"] else None,
             )
 
     def _tap(self, tap_list, defaults) -> bool:
@@ -104,7 +106,7 @@ class Brew(dotbot.Plugin):
 
         for pkg in packages:
             run = self._install(
-                "brew install --cask {pkg}",
+                "brew install --cask --no-quarantine {pkg}",
                 "test -d /usr/local/Caskroom/{pkg_name} "
                 + "|| brew ls --cask --versions {pkg_name}",
                 pkg,
